@@ -1,0 +1,7 @@
+keys:
+  "account.email.change.error.duplicated": "Provided email belongs to another account"
+  "account.faq": "FAQ"
+  "account.fitstation": "Fitstation"
+  "account.fitstation.scan": "Scan"
+  "account.fitstation.scan.recommendations": "Shoes for you based on your fitscan"
+  "account.fitstation.my.scans": "My scans"
