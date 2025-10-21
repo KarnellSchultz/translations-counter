@@ -29,10 +29,9 @@ func parseYamlFile(fileName string, t *TraslationsYaml) error {
 	return err
 }
 
-func getFilePaths() ([]string, error) {
-	XXL_FES_PATH := os.Getenv("XXL_FES_PATH")
+func getFilePaths(root string) ([]string, error) {
 	eligiblePaths := make([]string, 0)
-	err := filepath.WalkDir(XXL_FES_PATH, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -113,14 +112,16 @@ type App struct {
 	unusedOnly      bool
 	output          string
 	outputFormat    string
+	rootPath        string
 }
 
-func NewApp(translationFile string, unusedOnly bool, output string, outputFormat string) *App {
+func NewApp(translationFile string, unusedOnly bool, output string, outputFormat string, rootPath string) *App {
 	return &App{
 		translationFile: translationFile,
 		unusedOnly:      unusedOnly,
 		output:          output,
 		outputFormat:    outputFormat,
+		rootPath:        rootPath,
 	}
 }
 
@@ -131,7 +132,7 @@ func (a *App) Run() error {
 		return fmt.Errorf("failed to parse translations file: %w", err)
 	}
 
-	targetPaths, err := getFilePaths()
+	targetPaths, err := getFilePaths(a.rootPath)
 	if err != nil {
 		return fmt.Errorf("failed to get file paths: %w", err)
 	}
@@ -220,6 +221,7 @@ func main() {
 	defaultOutput := "output.json"
 	output := flag.String("output", defaultOutput, "path to the output file (extension will match format)")
 	format := flag.String("format", "json", "output format (json or csv); default: json")
+	rootPath := flag.String("root-path", ".", "path to the root directory of the project")
 	verbose := flag.Bool("verbose", false, "print configuration and progress information")
 
 	if format != nil && *format == "csv" {
@@ -234,10 +236,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  Output file: %s\n", *output)
 		fmt.Fprintf(os.Stderr, "  Output format: %s\n", *format)
 		fmt.Fprintf(os.Stderr, "  Unused only: %t\n", *unusedOnly)
+		fmt.Fprintf(os.Stderr, "  Root path: %s\n", *rootPath)
 		fmt.Fprintf(os.Stderr, "\n")
 	}
 
-	app := NewApp(*translationsFile, *unusedOnly, *output, *format)
+	app := NewApp(*translationsFile, *unusedOnly, *output, *format, *rootPath)
 	if err := app.Run(); err != nil {
 		log.Fatalf("error: %s", err)
 	}

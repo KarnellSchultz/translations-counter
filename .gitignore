@@ -2,8 +2,7 @@
 translation-key-usage-tracker
 
 # Output files
-output.json
-output.csv
+output.*
 
 # Go build artifacts
 *.exe
