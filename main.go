@@ -140,7 +140,6 @@ func (a *App) Run() error {
 
 	valueToWrite := resultsMap
 	if a.unusedOnly {
-		fmt.Println("Only unused keys")
 		unusedKeys := make(ResultsMap, 0)
 		for key, count := range resultsMap {
 			if count == 0 {
@@ -150,7 +149,6 @@ func (a *App) Run() error {
 		valueToWrite = unusedKeys
 	}
 
-	// Write results
 	writer, err := a.getWriter()
 	if err != nil {
 		return err
@@ -164,12 +162,11 @@ func (a *App) Run() error {
 }
 
 func (a *App) processFiles(targetPaths []string, keys map[string]string) ResultsMap {
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+	resultChan := make(chan ResultsMap, len(targetPaths))
 
+	var wg sync.WaitGroup
 	keysLen := len(keys)
 	wg.Add(len(targetPaths))
-	resultsMap := make(ResultsMap, keysLen)
 
 	for _, path := range targetPaths {
 		go func(item string) {
@@ -187,14 +184,22 @@ func (a *App) processFiles(targetPaths []string, keys map[string]string) Results
 			}
 			processFile(fileBytes, &localResults)
 
-			mu.Lock()
-			for key, count := range localResults {
-				resultsMap[key] += count
-			}
-			mu.Unlock()
+			resultChan <- localResults
 		}(path)
 	}
-	wg.Wait()
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	resultsMap := make(ResultsMap, keysLen)
+	for localResults := range resultChan {
+		for key, count := range localResults {
+			resultsMap[key] += count
+		}
+	}
+
 	return resultsMap
 }
 
@@ -210,15 +215,27 @@ func (a *App) getWriter() (FileWriter, error) {
 }
 
 func main() {
-	translationsFile := flag.String("translations", translationsFileValie, "path to the YAML file containing translation keys")
+	translationsFile := flag.String("input", translationsFileValie, "path to the YAML file containing translation keys")
 	unusedOnly := flag.Bool("unused-only", false, "include only unused translation keys in the output")
 	defaultOutput := "output.json"
 	output := flag.String("output", defaultOutput, "path to the output file (extension will match format)")
 	format := flag.String("format", "json", "output format (json or csv); default: json")
+	verbose := flag.Bool("verbose", false, "print configuration and progress information")
+
 	if format != nil && *format == "csv" {
 		defaultOutput = "output.csv"
 	}
+
 	flag.Parse()
+
+	if *verbose {
+		fmt.Fprintf(os.Stderr, "Configuration:\n")
+		fmt.Fprintf(os.Stderr, "  Input file: %s\n", *translationsFile)
+		fmt.Fprintf(os.Stderr, "  Output file: %s\n", *output)
+		fmt.Fprintf(os.Stderr, "  Output format: %s\n", *format)
+		fmt.Fprintf(os.Stderr, "  Unused only: %t\n", *unusedOnly)
+		fmt.Fprintf(os.Stderr, "\n")
+	}
 
 	app := NewApp(*translationsFile, *unusedOnly, *output, *format)
 	if err := app.Run(); err != nil {
