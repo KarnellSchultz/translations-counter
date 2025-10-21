@@ -1,0 +1,10 @@
+# Binary
+t
+
+# Output files
+output.json
+output.csv
+
+# Go build artifacts
+*.exe
+*.test
