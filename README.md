@@ -1,192 +1,261 @@
 # Translation Key Usage Tracker
 
-Scan a TypeScript React codebase for translation key usages and report the usage count per key as JSON or CSV.
+A Go-based CLI tool that analyzes your React/TypeScript codebase to track the usage of translation keys. This tool helps identify which translation keys are being used in your project and, more importantly, which ones are not being used at all.
 
-This CLI:
-- Loads translation keys from a YAML file
-- Walks your codebase (rooted at `XXL_FES_PATH`) and scans all `.tsx` files
-- Counts raw substring occurrences of each key
-- Can output all keys or only unused keys (count == 0)
-- Writes results to JSON or CSV
+## Features
 
-
-## Requirements
-
-- Go installed and available on your PATH
-- A YAML file containing your translation keys
-- Environment variable `XXL_FES_PATH` set to the root directory to scan
-
+- 🔍 **Scans TypeScript/TSX files** for translation key usage
+- 📊 **Generates usage reports** in JSON or CSV format
+- 🚀 **Concurrent processing** for fast analysis of large codebases
+- 🎯 **Unused key detection** to help clean up translation files
+- 📝 **Multiple output formats** for easy integration with other tools
 
 ## Installation
 
-Using the Makefile in this repository:
+### Prerequisites
 
-- Download dependencies (optional if you already have a populated go.mod):
-  
-      make deps
+- Go 1.19 or higher (for building from source)
+- Make (optional, for using the Makefile)
 
-- Build the binary (outputs `./translation-key-usage-tracker`):
-  
-      make build
+### Using Make (Recommended)
 
-- Install system-wide (may prompt for sudo):
-  
-      make install
+The project includes a Makefile with convenient installation options:
 
-- Install for current user only (no sudo):
-  
-      make install-user
+#### System-wide Installation
+```bash
+# Install to /usr/local/bin (may require sudo)
+make install
+```
 
-Make sure the install location is on your PATH. The binary name is `translation-key-usage-tracker`.
+#### User Installation
+```bash
+# Install to ~/bin (no sudo required)
+make install-user
 
+# Add ~/bin to your PATH if not already there:
+echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc  # or ~/.zshrc
+source ~/.bashrc  # or source ~/.zshrc
+```
 
-## YAML input format
+### Manual Build
 
-The tool expects a YAML file with a top-level `keys` mapping. The map keys are the translation keys to track; the values are not used by the scanner and may be any string.
+```bash
+# Clone the repository
+git clone <repository-url>
+cd translations-key-usage-tracker
 
-    keys:
-      checkout.shipping.title: "Shipping"
-      cart.empty: "Your cart is empty"
-      account.profile.save: "Save"
+# Build the binary
+go build -o translation-key-usage-tracker main.go
 
-By default, the tool reads `translations.yaml` from the current directory. You can override the input path with `-input`.
+# Move to a directory in your PATH
+mv translation-key-usage-tracker /usr/local/bin/
+```
 
+### From Source
+
+```bash
+go install github.com/yourusername/translations-key-usage-tracker@latest
+```
 
 ## Usage
 
-1) Set the scanning root:
+### Basic Usage
 
-    export XXL_FES_PATH=/absolute/path/to/your/frontend/repo
+```bash
+translation-key-usage-tracker -input translations.yaml -root-path /path/to/your/project
+```
 
-2) Run the tracker:
+### Command Line Options
 
-- JSON output (default):
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-input` | Path to the YAML file containing translation keys | `translations.yaml` |
+| `-output` | Path to the output file | `output.json` |
+| `-format` | Output format (`json` or `csv`) | `json` |
+| `-root-path` | Root directory of the project to scan | `.` (current directory) |
+| `-unused-only` | Include only unused translation keys in output | `false` |
+| `-verbose` | Print configuration and progress information | `false` |
 
-      translation-key-usage-tracker \
-        -input translations.yaml \
-        -output output.json \
-        -format json
+### Examples
 
-- CSV output:
+#### Find all unused translation keys in JSON format
+```bash
+translation-key-usage-tracker \
+  -input translations.yaml \
+  -root-path /path/to/react-project \
+  -unused-only \
+  -output unused-keys.json
+```
 
-      translation-key-usage-tracker \
-        -input translations.yaml \
-        -output output.csv \
-        -format csv
+#### Generate a CSV report of all translation key usage
+```bash
+translation-key-usage-tracker \
+  -input translations.yaml \
+  -root-path /path/to/react-project \
+  -format csv \
+  -output translation-usage.csv
+```
 
-- Only include unused keys (count == 0):
+#### Verbose mode for debugging
+```bash
+translation-key-usage-tracker \
+  -input translations.yaml \
+  -root-path ./src \
+  -verbose
+```
 
-      translation-key-usage-tracker \
-        -input translations.yaml \
-        -output unused.json \
-        -format json \
-        -unused-only
+## Input Format
 
-- Verbose mode:
+The tool expects a YAML file with translation keys in the following format:
 
-      translation-key-usage-tracker \
-        -input translations.yaml \
-        -output output.json \
-        -format json \
-        -verbose
+```yaml
+keys:
+  home.title: "Welcome to our application"
+  home.description: "This is the home page"
+  nav.about: "About Us"
+  nav.contact: "Contact"
+  footer.copyright: "© 2024 Your Company"
+```
 
+## Output Formats
 
-### CLI flags
+### JSON Output
 
-- `-input string`      path to the YAML file containing translation keys (default: `translations.yaml`)
-- `-unused-only`       include only unused translation keys in the output
-- `-output string`     path to the output file (default: `output.json`)
-- `-format string`     output format (`json` or `csv`; default: `json`)
-- `-verbose`           print configuration and progress information
+When using `-format json`, the output will be a JSON object with keys and their usage counts:
 
-Environment:
-- `XXL_FES_PATH`       root directory to scan for `.tsx` files
+```json
+{
+  "home.title": 5,
+  "home.description": 2,
+  "nav.about": 3,
+  "nav.contact": 3,
+  "footer.copyright": 0
+}
+```
 
+### CSV Output
 
-## Output examples
+When using `-format csv`, the output will be a CSV file with headers:
 
-- JSON:
+```csv
+key,count
+home.title,5
+home.description,2
+nav.about,3
+nav.contact,3
+footer.copyright,0
+```
 
-      {
-        "checkout.shipping.title": 3,
-        "cart.empty": 0,
-        "account.profile.save": 7
-      }
+### Unused Keys Only
 
-- CSV:
+When using the `-unused-only` flag, the output will only include keys with a count of 0:
 
-      key,count
-      checkout.shipping.title,3
-      cart.empty,0
-      account.profile.save,7
-
-
-## Makefile targets
-
-- `make help`          Show target descriptions
-- `make deps`          Download and tidy Go module dependencies
-- `make build`         Build the binary (`./translation-key-usage-tracker`)
-- `make install`       Install to `/usr/local/bin` (uses sudo if needed)
-- `make install-user`  Install to `~/bin` (ensure it’s on your PATH)
-- `make uninstall`     Remove installed binaries from system and user locations
-- `make clean`         Remove build artifacts and sample outputs
-- `make test`          Run Go tests
-- `make fmt`           `go fmt ./...`
-- `make vet`           `go vet ./...`
-- `make run`           Build and run with example arguments
-  - This checks `XXL_FES_PATH` and that `translations.yaml` exists
-  - It executes:
-    
-        ./translation-key-usage-tracker -input translations.yaml -output output.json -format json
-
-
-## How it works
-
-- The `XXL_FES_PATH` environment variable points to the root directory to scan.
-- The tool loads translation keys from a YAML file with a top-level `keys` mapping.
-- It recursively scans for `.tsx` files and counts raw substring occurrences of each key using `strings.Count`.
-- Results are aggregated across files and written via the chosen writer:
-  - JSON writer: writes a map of `key -> count`
-  - CSV writer: writes rows of `key,count`
-
-Note: Matching is literal substring counting. It does not parse AST or interpret frameworks’ i18n APIs.
-
-
-## Notes and limitations
-
-- File types: Only `.tsx` files are scanned. If keys appear in `.ts`, `.js`, `.jsx`, etc., they will not be counted.
-- Matching strategy: Raw substring counting is fast but:
-  - May over-count when keys appear in comments or unrelated string literals.
-  - May miss usages if your code constructs keys dynamically (e.g., string concatenation, template building).
-- Output path: The tool writes to the `-output` path exactly as provided. Ensure your path/extension matches the `-format` you choose.
-- Errors: Individual file read errors are logged and scanning continues. YAML/FS/IO errors will stop the run with a non-zero exit.
-
-
-## Troubleshooting
-
-- “XXL_FES_PATH environment variable not set”
-  - Set it before running:
-    
-        export XXL_FES_PATH=/path/to/project
-
-- No keys found or all counts are zero
-  - Ensure your YAML has a top-level `keys` mapping and that the keys in the YAML match the substrings present in `.tsx` files.
-
-- CSV vs JSON outputs
-  - Set `-format` to `csv` or `json` and ensure your `-output` file extension matches your expectations.
-
-- Permission denied when installing
-  - Use `make install-user` or rerun `make install` with appropriate privileges.
-
-- Long runtime on large repos
-  - Scanning is concurrent per file, but counting is still substring-based across all keys. Consider narrowing `XXL_FES_PATH` or keys list if needed.
-
+```json
+{
+  "footer.copyright": 0,
+  "deprecated.old_feature": 0
+}
+```
 
 ## Development
 
-- Format: `make fmt`
-- Lint: `make vet`
-- Test: `make test`
-- Dependencies: `make deps`
+### Building from Source
 
-Contributions to improve matching accuracy (e.g., AST parsing, i18n-aware heuristics, or configurable file globs) are welcome.
+```bash
+# Clone the repository
+git clone <repository-url>
+cd translations-key-usage-tracker
+
+# Download dependencies
+make deps
+
+# Build the project
+make build
+
+# Run tests
+make test
+```
+
+### Available Make Commands
+
+```bash
+make help          # Show all available commands
+make build         # Build the binary
+make install       # Install to /usr/local/bin (requires sudo)
+make install-user  # Install to ~/bin (no sudo needed)
+make uninstall     # Remove from system
+make clean         # Remove built binaries and output files
+make test          # Run tests
+make run           # Build and run with example arguments
+make fmt           # Format code
+make vet           # Run go vet for linting
+make deps          # Download and tidy dependencies
+```
+
+### Running in Development
+
+For development, you can use the `make run` command, but you'll need to set up the environment:
+
+```bash
+# Set the project path (if using make run)
+export XXL_FES_PATH=/path/to/your/react/project
+
+# Ensure you have a translations.yaml file in the current directory
+# Then run
+make run
+```
+
+## How It Works
+
+1. **Parse Translation File**: The tool reads the YAML file containing all translation keys
+2. **Scan Project Files**: Recursively walks through the specified directory, finding all `.tsx` files
+3. **Concurrent Processing**: Uses goroutines to process multiple files simultaneously for better performance
+4. **Count Occurrences**: For each translation key, counts how many times it appears in each file
+5. **Aggregate Results**: Combines counts from all files
+6. **Generate Output**: Writes results in the specified format (JSON or CSV)
+
+## Performance Considerations
+
+- The tool uses concurrent processing with goroutines to handle large codebases efficiently
+- File reading and processing are done in parallel
+- Results are aggregated using channels for thread-safe operations
+
+## Use Cases
+
+- **Clean up unused translations**: Identify and remove translation keys that are no longer used
+- **Translation audit**: Get a complete overview of translation key usage
+- **CI/CD integration**: Automate checks for unused translations in your build pipeline
+- **Refactoring assistance**: Understand which translations are heavily used before refactoring
+- **Documentation**: Generate reports of translation usage for documentation purposes
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Go is not installed" error**
+   - Install Go from [https://go.dev/doc/install](https://go.dev/doc/install)
+   - On macOS: `brew install go`
+
+2. **"translations.yaml not found" error**
+   - Ensure the YAML file exists in the specified location
+   - Use the `-input` flag to specify a different path
+
+3. **No files being scanned**
+   - Verify the `-root-path` points to the correct directory
+   - Check that your TypeScript files have the `.tsx` extension
+
+4. **Permission denied during installation**
+   - Use `make install-user` for user-level installation
+   - Or use `sudo make install` for system-wide installation
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[Specify your license here]
+
+## Author
+
+[Your name/organization]
