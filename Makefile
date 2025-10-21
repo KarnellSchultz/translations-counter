@@ -1,4 +1,4 @@
-.PHONY: help build install install-user uninstall clean test run fmt vet
+.PHONY: help build install install-user uninstall clean test run fmt vet deps
 
 # Binary configuration
 BINARY_NAME=translation-key-usage-tracker
@@ -43,7 +43,7 @@ check-go:
 		@echo "✅ Go is installed: $$($(GOCMD) version)"
 
 # Build the binary
-build:
+build: check-go
 	@echo "🔨 Building $(BINARY_NAME)..."
 	@$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_FILE)
 	@echo "✅ Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
@@ -122,4 +122,9 @@ run: build
 		echo "Set it with: export XXL_FES_PATH=/path/to/project"; \
 		exit 1; \
 	fi
-	@./$(BINARY_NAME) --translations translations.yaml --output output.json --format json
+	@if [ ! -f translations.yaml ]; then \
+		echo "❌ Error: translations.yaml not found in current directory"; \
+		echo "Provide it or pass -input with a path to the YAML file"; \
+		exit 1; \
+	fi
+	@./$(BINARY_NAME) -input translations.yaml -output output.json -format json
